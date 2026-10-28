@@ -63,18 +63,18 @@ jobs:
 
       - name: Build and Package IPA
         run: |
-          mkdir -p build/logs
+          mkdir -p ci_logs
           set -o pipefail
-          echo "Running make build..."
-          make build 2>&1 | tee build/logs/build.log | xcbeautify --renderer github-actions || {
+          echo "Running make -B build..."
+          NSUnbufferedIO=YES make -B build 2>&1 | tee ci_logs/build.log | xcbeautify --renderer github-actions || {
             echo "::error::Xcode build failed. Printing last 100 lines of build log:"
-            tail -n 100 build/logs/build.log
+            tail -n 100 ci_logs/build.log
             exit 1
           }
           echo "Running make fakesign..."
-          make fakesign | tee -a build/logs/build.log
+          make fakesign 2>&1 | tee -a ci_logs/build.log
           echo "Running make ipa..."
-          make ipa | tee -a build/logs/build.log
+          make ipa 2>&1 | tee -a ci_logs/build.log
           ls -lh SideStore.ipa
 
       - name: Upload IPA Artifact
@@ -89,7 +89,7 @@ jobs:
         if: always()
         with:
           name: build-logs
-          path: build/logs/
+          path: ci_logs/
           if-no-files-found: ignore
 
       - name: Publish GitHub Release
