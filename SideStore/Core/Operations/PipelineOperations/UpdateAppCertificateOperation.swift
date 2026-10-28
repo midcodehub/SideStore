@@ -22,6 +22,12 @@ final class UpdateAppCertificateOperation: BasePipelineOperation<InstallAppOpera
         }
         try await super.executePreconditionCheck(parentProgress: parentProgress)
         
+        if self.context.usesCustomCertificate {
+            debugLog("[UpdateAppCertificateOperation] Custom certificate signing active. Keeping the imported certificate/profile.")
+            self.setProgress(100)
+            return
+        }
+        
         let targetBundleID = self.context.installedApp?.bundleIdentifier ?? self.context.targetBundleIdentifier
         let profileToUse = self.context.overrideProvisioningProfile ?? ProfileManager.shared.getAssignedProfile(for: targetBundleID)
 

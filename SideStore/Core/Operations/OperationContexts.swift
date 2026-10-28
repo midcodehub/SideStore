@@ -281,6 +281,8 @@ class InstallAppOperationContext: PipelineOperationContext
 
     var overrideSigningCertificate: ALTCertificate?
     var overrideProvisioningProfile: ALTProvisioningProfile?
+    /// Set by `CustomCertificateSigner`: sign with the local .p12/.mobileprovision and skip all Apple Developer Portal steps.
+    var usesCustomCertificate: Bool = false
     let activeSigningCertificate: ALTCertificate?
 
     var targetSigningCertificate: ALTCertificate? {

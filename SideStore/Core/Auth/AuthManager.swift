@@ -123,9 +123,17 @@ public final class AuthManager: @unchecked Sendable {
             return team
         }
         
-        let team = try await self.resolveActiveTeam()
-        self.team = team
-        return team
+        do {
+            let team = try await self.resolveActiveTeam()
+            self.team = team
+            return team
+        } catch OperationError.notAuthenticated {
+            // Offline signing works without an Apple ID: describe the team from the imported provisioning profile
+            if CustomCertificateSigner.shared.isActive, let customTeam = CustomCertificateSigner.shared.signingTeam {
+                return customTeam
+            }
+            throw OperationError.notAuthenticated
+        }
     }
 
     private func resolveActiveTeam() async throws -> ALTTeam {
@@ -167,6 +175,42 @@ public final class AuthManager: @unchecked Sendable {
         return result
     }
     
+    
+    /// Runs the sign-in operation with a caller supplied handler (used for UI-less account switching).
+    @discardableResult
+    func signIn(
+        handler: any SignInHandler & AnisetteServerHandler,
+        skipDeviceRegistration: Bool = false,
+        skipCertificateProvisioning: Bool = false,
+        skipResign: Bool = true,
+        skipHowTos: Bool = true
+    ) async throws -> SignInResult {
+        let dbBackgroundContext = DatabaseManager.shared.persistentContainer.newBackgroundContext()
+        let context = StandaloneOperationContext(
+            steps: .signIn,
+            dbBackgroundContext: dbBackgroundContext
+        )
+        
+        let signInOperation = try SignInOperation(
+            context: context,
+            signInHandler: handler,
+            anisetteServerHandler: handler,
+            skipDeviceRegistration: skipDeviceRegistration,
+            skipCertificateProvisioning: skipCertificateProvisioning,
+            skipResign: skipResign,
+            skipHowTos: skipHowTos
+        )
+        let result = try await signInOperation.execute()
+        self.team = result.team
+        self.session = result.session
+        return result
+    }
+    
+    /// Drops the in-memory team / session so the next access re-reads the active account (Keychain + database).
+    func resetCachedState() {
+        self.session = nil
+        self.team = nil
+    }
     
     // Developer Portal Operations
     public func signIn(appleID: String, 

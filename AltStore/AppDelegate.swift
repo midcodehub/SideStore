@@ -106,6 +106,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         setupCrashHandler()
         
         UNUserNotificationCenter.current().delegate = self
+        ExpirationWarningManager.shared.registerNotificationCategory()
         
         debugLog("===================================================")
         debugLog("|               App is Starting up                |")
@@ -192,6 +193,9 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 
                 // Perform one-time maintenance tasks after database is started
                 await MaintenanceManager.shared.performMaintenanceIfNeeded()
+                
+                // Warn when any app has less than 48 hours left (Wi-Fi only)
+                await ExpirationWarningManager.shared.evaluate()
             }
             catch
             {
@@ -438,6 +442,7 @@ extension AppDelegate
                 do
                 {
                     try await DatabaseManager.shared.start()
+                    await ExpirationWarningManager.shared.evaluate()
                     self.performBackgroundFetch { (backgroundFetchResult) in
                         backgroundFetchCompletionHandler(backgroundFetchResult)
                     } refreshAppsCompletionHandler: { (refreshAppsResult) in
@@ -717,5 +722,12 @@ private extension AppDelegate {
 extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound])
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        Task {
+            _ = await ExpirationWarningManager.shared.handleNotificationResponse(response)
+            completionHandler()
+        }
     }
 }

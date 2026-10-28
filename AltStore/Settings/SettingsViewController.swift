@@ -86,6 +86,23 @@ extension SettingsViewController
         case certificateManagement  // row 9 - Certificate Management
         case backupAndRestore       // row 10 - Backup & Restore
         case userCustomizations     // row 11 - User Customizations
+        
+        // Rows below are not part of the storyboard: their cells are created in code (see makeProgrammaticAdvancedCell).
+        // The raw values are intentionally far away from the storyboard row indices.
+        case accountPool = 100          // Multi-account management (Account Pool)
+        case pairingDiagnostics = 101   // Pairing & tunnel diagnostics
+        case customCertificate = 102    // Custom certificate (P12) signing
+        
+        var isProgrammatic: Bool { self.rawValue >= 100 }
+        
+        var title: String {
+            switch self {
+            case .accountPool: return NSLocalizedString("Account Pool (Multi-Account)", comment: "")
+            case .pairingDiagnostics: return NSLocalizedString("Pairing & Tunnel Diagnostics", comment: "")
+            case .customCertificate: return NSLocalizedString("Custom Certificate / P12", comment: "")
+            default: return ""
+            }
+        }
 
         static var allCases: [AdvancedSettingsRow] {
             var rows: [AdvancedSettingsRow] = [.sendFeedback, .refreshAttempts, .refreshSideJITServer, .pairingFileManagement]
@@ -101,6 +118,9 @@ extension SettingsViewController
                 .backupAndRestore,
                 .userCustomizations
             ])
+            #if !os(tvOS)
+            rows.append(contentsOf: [.accountPool, .pairingDiagnostics, .customCertificate])
+            #endif
             return rows
         }
     }
@@ -649,6 +669,57 @@ private extension SettingsViewController
         }
     }
     
+    func pushHostingController<Content: View>(_ rootView: Content, title: String)
+    {
+        let vc = UIHostingController(rootView: rootView)
+        vc.title = title
+        #if !os(tvOS)
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithDefaultBackground()
+        vc.navigationItem.scrollEdgeAppearance = appearance
+        vc.navigationItem.standardAppearance = appearance
+        #endif
+        self.navigationController?.pushViewController(vc, animated: true)
+    }
+    
+    /// Builds a row that is not present in Settings.storyboard, styled like the storyboard's inset cells.
+    func makeProgrammaticAdvancedCell(for row: AdvancedSettingsRow, at indexPath: IndexPath) -> UITableViewCell
+    {
+        let cell = InsetGroupTableViewCell(style: .default, reuseIdentifier: nil)
+        cell.isSelectable = true
+        cell.style = (indexPath.row == AdvancedSettingsRow.allCases.count - 1) ? .bottom : .middle
+        cell.layoutMargins = UIEdgeInsets(top: 8, left: 30, bottom: 8, right: 30)
+        
+        let titleLabel = UILabel()
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.text = row.title
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 17)
+        titleLabel.textColor = .white
+        titleLabel.numberOfLines = 1
+        titleLabel.adjustsFontSizeToFit = true
+        titleLabel.minimumScaleFactor = 0.8
+        
+        let chevronConfiguration = UIImage.SymbolConfiguration(scale: .large)
+        let chevronView = UIImageView(image: UIImage(systemName: "chevron.right", withConfiguration: chevronConfiguration))
+        chevronView.translatesAutoresizingMaskIntoConstraints = false
+        chevronView.tintColor = .white
+        chevronView.contentMode = .scaleAspectFit
+        chevronView.setContentHuggingPriority(.required, for: .horizontal)
+        
+        cell.contentView.addSubview(titleLabel)
+        cell.contentView.addSubview(chevronView)
+        
+        let margins = cell.contentView.layoutMarginsGuide
+        NSLayoutConstraint.activate([
+            titleLabel.leadingAnchor.constraint(equalTo: margins.leadingAnchor),
+            titleLabel.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor),
+            chevronView.trailingAnchor.constraint(equalTo: margins.trailingAnchor),
+            chevronView.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: chevronView.leadingAnchor, constant: -8)
+        ])
+        return cell
+    }
+    
     @objc func signOut(_ sender: UIBarButtonItem)
     {
         debugLog("[SettingsVC] signOut() invoked by user action")
@@ -961,6 +1032,7 @@ extension SettingsViewController
         let effectiveIndexPath: IndexPath
         if Section.allCases[indexPath.section] == .advancedSettings {
             let row = AdvancedSettingsRow.allCases[indexPath.row]
+            if row.isProgrammatic { return 51 }
             effectiveIndexPath = IndexPath(row: row.rawValue, section: indexPath.section)
         } else {
             effectiveIndexPath = indexPath
@@ -990,6 +1062,7 @@ extension SettingsViewController
         let effectiveIndexPath: IndexPath
         if Section.allCases[indexPath.section] == .advancedSettings {
             let row = AdvancedSettingsRow.allCases[indexPath.row]
+            if row.isProgrammatic { return 0 }
             effectiveIndexPath = IndexPath(row: row.rawValue, section: indexPath.section)
         } else {
             effectiveIndexPath = indexPath
@@ -1024,11 +1097,23 @@ extension SettingsViewController
         let effectiveIndexPath: IndexPath
         if Section.allCases[indexPath.section] == .advancedSettings {
             let row = AdvancedSettingsRow.allCases[indexPath.row]
+            if row.isProgrammatic {
+                return self.makeProgrammaticAdvancedCell(for: row, at: indexPath)
+            }
             effectiveIndexPath = IndexPath(row: row.rawValue, section: indexPath.section)
         } else {
             effectiveIndexPath = indexPath
         }
         let cell = super.tableView(tableView, cellForRowAt: effectiveIndexPath)
+        
+        // The storyboard draws "User Customizations" as the last (rounded) row, but programmatic rows may follow it.
+        if Section.allCases[indexPath.section] == .advancedSettings,
+           AdvancedSettingsRow.allCases[indexPath.row] == .userCustomizations,
+           indexPath.row < AdvancedSettingsRow.allCases.count - 1,
+           let insetCell = cell as? InsetGroupTableViewCell
+        {
+            insetCell.style = .middle
+        }
         
         if Section.allCases[indexPath.section] == .account {
             if indexPath.row == 2 {
@@ -1353,6 +1438,15 @@ extension SettingsViewController
                 vc.view.backgroundColor = .settingsBackground
                 vc.title = NSLocalizedString("User Customizations", comment: "")
                 self.prepare(for: UIStoryboardSegue(identifier: "diagnostics", source: self, destination: vc), sender: nil)
+                
+            case .accountPool:
+                self.pushHostingController(AccountPoolView(presentingViewController: self), title: row.title)
+                
+            case .pairingDiagnostics:
+                self.pushHostingController(PairingDiagnosticsView(), title: row.title)
+                
+            case .customCertificate:
+                self.pushHostingController(CustomCertificateView(), title: row.title)
                 
             case .refreshAttempts: break
             }

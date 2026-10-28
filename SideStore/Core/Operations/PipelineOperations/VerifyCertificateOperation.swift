@@ -29,6 +29,15 @@ final class VerifyCertificateOperation: BasePipelineOperation<InstallAppOperatio
         try await super.executePreconditionCheck(parentProgress: parentProgress)
         self.setProgress(10)
         
+        if self.context.usesCustomCertificate {
+            // Offline signing: there is no developer portal to compare against. CustomCertificateSigner already
+            // verified that the certificate belongs to the profile and that the profile has not expired.
+            debugLog("[VerifyCertificateOperation] Custom certificate signing active. Skipping developer portal verification.")
+            self.context.targetCertStatus = .valid(isCrossSigned: false)
+            self.setProgress(100)
+            return
+        }
+        
         let team = try await AuthManager.shared.getAuthenticatedTeam()
         
         let bundleID = self.context.targetBundleIdentifier

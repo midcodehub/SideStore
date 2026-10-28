@@ -29,6 +29,14 @@ public struct ShortcutsProvider: AppShortcutsProvider
                     ],
                     shortTitle: "Install IPA",
                     systemImageName: "square.and.arrow.down")
+
+        AppShortcut(intent: SmartRefreshAllAppsIntent(),
+                    phrases: [
+                        "Smart refresh \(.applicationName)",
+                        "Smart refresh \(.applicationName) apps",
+                    ],
+                    shortTitle: "Smart Refresh",
+                    systemImageName: "bolt.horizontal.circle")
     }
     
     public static var shortcutTileColor: ShortcutTileColor {

@@ -21,7 +21,12 @@ final class ResignAppOperation: BasePipelineOperation<InstallAppOperationContext
         }
         try await super.executePreconditionCheck(parentProgress: parentProgress)
         
-        let team = try await AuthManager.shared.getAuthenticatedTeam()
+        let team: ALTTeam
+        if self.context.usesCustomCertificate, let customTeam = CustomCertificateSigner.shared.signingTeam {
+            team = customTeam
+        } else {
+            team = try await AuthManager.shared.getAuthenticatedTeam()
+        }
         guard
             let appBundle = self.context.targetAppBundle,
             let profiles = self.context.provisioningProfiles,

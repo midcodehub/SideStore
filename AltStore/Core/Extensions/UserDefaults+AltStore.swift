@@ -370,6 +370,24 @@ public extension UserDefaults
         get { self.bool(forKey: #function) }
         set { self.set(newValue, forKey: #function) }
     }
+    
+    // Account pool (MultiAccountManager): false = ask before switching, true = rotate automatically
+    @objc var isAccountPoolAutoRotateEnabled: Bool {
+        get { self.bool(forKey: #function) }
+        set { self.set(newValue, forKey: #function) }
+    }
+    
+    // Custom certificate signing (CustomCertificateSigner)
+    @objc var preferCustomCertificateSigning: Bool {
+        get { self.bool(forKey: #function) }
+        set { self.set(newValue, forKey: #function) }
+    }
+    
+    // Expiration warning notifications (AutoRefreshIntents)
+    @objc var isExpirationWarningEnabled: Bool {
+        get { self.bool(forKey: #function) }
+        set { self.set(newValue, forKey: #function) }
+    }
     @objc var presentedLaunchReminderNotification: Bool {
         get { self.bool(forKey: #function) }
         set { self.set(newValue, forKey: #function) }
@@ -587,6 +605,9 @@ public extension UserDefaults
             #keyPath(UserDefaults.turnOnDataShortcutName): "TurnOnData",
             #keyPath(UserDefaults.isPairingReset): true,
             #keyPath(UserDefaults.isDebugModeEnabled): false,
+            #keyPath(UserDefaults.isAccountPoolAutoRotateEnabled): false,
+            #keyPath(UserDefaults.preferCustomCertificateSigning): false,
+            #keyPath(UserDefaults.isExpirationWarningEnabled): true,
             #keyPath(UserDefaults.isDeviceRegistered): false,
 
         ] as [String: Any]

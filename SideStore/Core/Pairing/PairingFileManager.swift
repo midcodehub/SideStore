@@ -113,6 +113,7 @@ final class PairingFileManager: NSObject {
         try contents.write(to: destinationURL, atomically: true, encoding: .utf8)
         debugLog("[PairingFile] Saved \(parsed.mode.rawValue) pairing file to: \(destinationURL.path)")
         UserDefaults.standard.isPairingReset = false
+        PairingRecoveryService.shared.backup(contents: contents, fileName: destinationURL.lastPathComponent)
         return parsed
     }
 
@@ -144,6 +145,8 @@ final class PairingFileManager: NSObject {
             try? fm.removeItem(at: fileURL)
             debugLog("[PairingFile] Deleted \(mode.rawValue) pairing file: \(fileURL.path)")
         }
+        // a deliberate delete must not be undone by the Keychain restore on next launch
+        PairingRecoveryService.shared.removeBackup(fileName: PairingRecoveryService.shared.fileName(for: mode))
         if mode == persistedActiveProtocol {
             persistedActiveProtocol = nil
         }
@@ -162,6 +165,7 @@ final class PairingFileManager: NSObject {
                 try? fm.removeItem(at: path)
             }
         }
+        PairingRecoveryService.shared.removeAllBackups()
         UserDefaults.standard.isPairingReset = true
         persistedActiveProtocol = nil
         debugLog("[PairingFile] Reset all pairing files.")

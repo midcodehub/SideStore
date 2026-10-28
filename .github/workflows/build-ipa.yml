@@ -1,0 +1,106 @@
+name: Build and Package SideStore IPA
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build SideStore IPA
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Select Xcode Version
+        run: |
+          echo "Checking available Xcode versions..."
+          ls -d /Applications/Xcode* || true
+          if [ -d "/Applications/Xcode_16.2.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.2.app
+          elif [ -d "/Applications/Xcode_16.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          elif [ -d "/Applications/Xcode_16.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.0.app
+          elif [ -d "/Applications/Xcode.app" ]; then
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcodebuild -version
+
+      - name: Install Build Tools
+        run: |
+          brew install ldid xcbeautify
+
+      - name: Setup CodeSigning Config
+        run: |
+          if [ ! -f CodeSigning.xcconfig ]; then
+            cp CodeSigning.xcconfig.sample CodeSigning.xcconfig
+          fi
+
+      - name: Build and Package IPA
+        run: |
+          mkdir -p build/logs
+          set -o pipefail
+          echo "Running make build..."
+          make build 2>&1 | tee build/logs/build.log | xcbeautify --renderer github-actions || {
+            echo "::error::Xcode build failed. Printing last 100 lines of build log:"
+            tail -n 100 build/logs/build.log
+            exit 1
+          }
+          echo "Running make fakesign..."
+          make fakesign | tee -a build/logs/build.log
+          echo "Running make ipa..."
+          make ipa | tee -a build/logs/build.log
+          ls -lh SideStore.ipa
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SideStore.ipa
+          path: SideStore.ipa
+          if-no-files-found: error
+
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs
+          path: build/logs/
+          if-no-files-found: ignore
+
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(date +'%Y.%m.%d-%H%M%S')"
+          RELEASE_TITLE="SideStore Build $(date +'%Y-%m-%d %H:%M:%S')"
+          echo "Creating GitHub Release with tag $TAG..."
+          gh release create "$TAG" SideStore.ipa \
+            --title "$RELEASE_TITLE" \
+            --notes "Automated SideStore IPA build from commit ${{ github.sha }} on main branch." \
+            --latest || echo "Warning: Release creation skipped or failed, IPA artifact remains available in workflow artifacts."

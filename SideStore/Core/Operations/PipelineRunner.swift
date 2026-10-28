@@ -325,6 +325,11 @@ final class PipelineRunner: Sendable
         context.isCellularRefreshGroup = group.isCellularRefreshGroup
         context.groupOperationsCount = operationsCount
         
+        // Optional offline signing with a user supplied .p12 + .mobileprovision (SideStore itself keeps using the Apple ID flow)
+        if !operation.bundleIdentifier.isAltStoreAppID, CustomCertificateSigner.shared.isActive {
+            CustomCertificateSigner.shared.apply(to: context)
+        }
+        
         switch operation {
             case .install(_, let customID), .reinstall(_, let customID):
                 context.customBundleIdentifier = customID

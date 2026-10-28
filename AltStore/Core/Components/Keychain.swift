@@ -98,6 +98,38 @@ public class Keychain
         }
     }
     
+    // MARK: - Dynamic Items (Account Pool / Pairing Backup)
+
+    /// Device-local keychain (never synced through iCloud Keychain). Used for data that is only valid on this device,
+    /// like pairing files.
+    fileprivate let localKeychain = KeychainAccess.Keychain(service: Bundle.Info.appbundleIdentifier + ".local")
+                                                  .accessibility(.afterFirstUnlockThisDeviceOnly)
+                                                  .synchronizable(false)
+
+    /// Generic synchronizable storage addressed by an arbitrary key (used by `MultiAccountManager`).
+    public subscript(dynamicKey key: String) -> Data? {
+        get { try? self.keychain.getData(key) }
+        set {
+            if let data = newValue {
+                try? self.keychain.set(data, key: key)
+            } else {
+                try? self.keychain.remove(key)
+            }
+        }
+    }
+
+    /// Generic device-local storage addressed by an arbitrary key (used by `PairingRecoveryService`).
+    public subscript(localKey key: String) -> Data? {
+        get { try? self.localKeychain.getData(key) }
+        set {
+            if let data = newValue {
+                try? self.localKeychain.set(data, key: key)
+            } else {
+                try? self.localKeychain.remove(key)
+            }
+        }
+    }
+
     private init()
     {
         self.migrateLegacyKeychainItems()

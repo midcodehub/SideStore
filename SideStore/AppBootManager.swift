@@ -129,6 +129,11 @@ public final class AppBootManager {
         async let minimuxerCheck: Void = {
             debugLog("[AppBootManager] performBootSequence(): Minimuxer check starting")
             defer { debugLog("[AppBootManager] performBootSequence(): Minimuxer check completed") }
+            
+            // restore pairing files lost from the sandbox (overwrite update / cleanup) from the Keychain mirror
+            if PairingRecoveryService.shared.reconcileOnLaunch() {
+                debugLog("[AppBootManager] performBootSequence(): Pairing file restored from Keychain backup")
+            }
             guard let pf = PairingFileManager.shared.fetchPairingFile() else {
                 #if !targetEnvironment(simulator)
                 self.needsPairingPrompt = true

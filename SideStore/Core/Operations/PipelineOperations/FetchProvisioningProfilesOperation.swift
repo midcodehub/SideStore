@@ -48,7 +48,38 @@ class FetchProvisioningProfilesOperation: BasePipelineOperation<InstallAppOperat
             return profiles
         }
 
-        let team = try await AuthManager.shared.getAuthenticatedTeam()
+        var team = try await AuthManager.shared.getAuthenticatedTeam()
+        
+        // When the free team runs out of App IDs, MultiAccountManager can rotate to a backup Apple ID and we retry once per pooled account.
+        var rotations = 0
+        while true {
+            do {
+                return try await self.fetchProfiles(for: targetAppBundle, effectiveBundleId: effectiveBundleId, team: team)
+            } catch MultiAccountError.appIDQuotaExceeded(let exhaustedTeamIdentifier, let underlying) {
+                rotations += 1
+                guard rotations <= MultiAccountManager.shared.accounts.count,
+                      try await MultiAccountManager.shared.handleAppIDQuotaExceeded(
+                        exhaustedTeamIdentifier: exhaustedTeamIdentifier,
+                        requiredAppIDs: 1 + targetAppBundle.appExtensions.count
+                      ) != nil
+                else {
+                    throw underlying
+                }
+                
+                team = try await AuthManager.shared.getAuthenticatedTeam()
+                self.debugLog("[FetchProvisioningProfiles] Switched to team \(team.identifier) after App ID quota exhaustion on team \(exhaustedTeamIdentifier). Retrying...")
+                
+                // caches and the signing certificate belong to the previous team
+                self.context.sharedContext.appIDs = nil
+                self.context.sharedContext.appGroups = nil
+                self.context.overrideSigningCertificate = CertificateManager.shared.activeCertificate?.certificate
+                self.setProgress(5)
+            }
+        }
+    }
+    
+    private func fetchProfiles(for targetAppBundle: ALTApplication, effectiveBundleId: String, team: ALTTeam) async throws -> [String: ALTProvisioningProfile] {
+        let appExtensions = targetAppBundle.appExtensions
         self.debugLog("[FetchProvisioningProfiles] Executing for app \(targetAppBundle.bundleIdentifier), targetBundleID: \(effectiveBundleId), team: \(team.identifier), useMainProfile: \(self.context.useMainProfile)")
         
         self.setProgress(10)
@@ -206,6 +237,7 @@ private extension FetchProvisioningProfilesOperation{
             self.debugLog("[FetchProvisioningProfiles] Fetching existing App IDs from Apple for team \(team.identifier)...")
             let fetchedAppIDs = try await DeveloperPortalProxy.shared.fetchAppIDs(for: team)
             self.context.sharedContext.appIDs = fetchedAppIDs
+            MultiAccountManager.shared.recordUsage(teamIdentifier: team.identifier, appIDs: fetchedAppIDs)
             self.verboseLog("[FetchProvisioningProfiles] Found \(fetchedAppIDs.count) existing App IDs on portal for team \(team.identifier): \(fetchedAppIDs.map { $0.bundleIdentifier })")
             return fetchedAppIDs
         }
@@ -223,7 +255,15 @@ private extension FetchProvisioningProfilesOperation{
             let appIDName = self.sanitizeAppIDName(name: name, bundleIdentifier: bundleIdentifier)
             
             self.debugLog("[FetchProvisioningProfiles] Calling DeveloperPortalProxy.shared.addAppID with name '\(appIDName)' and identifier '\(bundleIdentifier)'...")
-            let appID = try await DeveloperPortalProxy.shared.addAppID(name: appIDName, bundleIdentifier: bundleIdentifier, team: team)
+            let appID: ALTAppID
+            do {
+                appID = try await DeveloperPortalProxy.shared.addAppID(name: appIDName, bundleIdentifier: bundleIdentifier, team: team)
+            } catch {
+                if team.type == .free, MultiAccountManager.isAppIDQuotaError(error) || appIDs.count >= Team.maximumFreeAppIDs {
+                    throw MultiAccountError.appIDQuotaExceeded(teamIdentifier: team.identifier, underlying: error)
+                }
+                throw error
+            }
             self.context.sharedContext.appendAppID(appID)
             self.debugLog("[FetchProvisioningProfiles] Successfully registered new App ID '\(appID.bundleIdentifier)' on Apple portal.")
             return appID
