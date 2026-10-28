@@ -1,0 +1,27 @@
+.github/workflows/build-ipa.yml
+  s_5e55143c7b307d::t_e7fb0c51f65555 1-106
+"AltStore/Intents/App Intents/AutoRefreshIntents.swift"
+  s_5e55143c7b307d::t_d1d6883b18608e 1-370
+SideStore/Core/Certificates/CustomCertificateSigner.swift
+  s_5e55143c7b307d::t_ae1347e06d785a 1-246
+SideStore/Views/Settings/Advanced/AccountPool/AccountPoolView.swift
+  s_5e55143c7b307d::t_d8d5ff17b5903b 1-224
+SideStore/Views/Settings/Advanced/CustomCertificate/CustomCertificateView.swift
+  s_5e55143c7b307d::t_e40b75261bc624 1-235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "74a88787f3562b0096408fdf5584b02a80c38b56",
+  "prompts": {},
+  "sessions": {
+    "s_5e55143c7b307d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8225475b-c011-45a0-82d5-2e20004ed994",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "midcodehub <midcode@foxmail.com>"
+    }
+  }
+}
