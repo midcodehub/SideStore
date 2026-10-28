@@ -148,7 +148,8 @@ final class PairingRecoveryService: @unchecked Sendable {
 
             guard let contents = self.loadBackup(fileName: file.fileName) else { continue }
             do {
-                let parsed = try PairingFileManager.shared.savePairingFile(contents: contents)
+                let mode: PairingProtocol = file.fileName == AppConstants.Pairing.remotePairingFileName ? .rppairing : .lockdown
+                let parsed = try PairingFileManager.shared.savePairingFile(contents: contents, preferred: mode)
                 if PairingFileManager.shared.persistedActiveProtocol == nil {
                     PairingFileManager.shared.persistedActiveProtocol = parsed.mode
                 }

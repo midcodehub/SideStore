@@ -102,6 +102,32 @@ final class PairingFileManager: NSObject {
         try PairingFileParser.parse(content: content, preferred: preferred)
     }
 
+    /// Picks the protocol minimuxer should start with for the given pairing content.
+    /// Dual-credential files (Lockdown + Remote Pairing) are ambiguous without a hint, so it is resolved here.
+    /// iOS 26.4+ rejects Lockdown over LocalDevVPN (no ipsec interface), so Remote Pairing is tried first there.
+    /// Needs proper testing across iOS versions.
+    nonisolated func resolveStartProtocol(for content: String) -> PairingProtocol? {
+        var candidates: [PairingProtocol] = []
+        if #available(iOS 26.4, *) {
+            candidates.append(.rppairing)
+        }
+        if let preferred = preferredProtocol {
+            candidates.append(preferred)
+        }
+        if let persisted = persistedActiveProtocol {
+            candidates.append(persisted)
+        }
+        candidates.append(contentsOf: [.lockdown, .rppairing])
+
+        var tried = Set<PairingProtocol>()
+        for mode in candidates where mode != .unknown && tried.insert(mode).inserted {
+            if (try? parse(content: content, preferred: mode)) != nil {
+                return mode
+            }
+        }
+        return nil
+    }
+
     @discardableResult
     func savePairingFile(contents: String, preferred: PairingProtocol? = nil) throws -> any PairingFile {
         let parsed = try parse(content: contents, preferred: preferred)
@@ -143,6 +169,18 @@ final class PairingFileManager: NSObject {
         let (content, _) = try inspectPairingFile(from: url, preferred: effectivePreferred)
         let parsed = try savePairingFile(contents: content, preferred: effectivePreferred)
         persistedActiveProtocol = parsed.mode
+        saveCompanionCopyIfDualCredential(contents: content, primary: parsed.mode)
+    }
+
+    /// Dual-credential files are also stored under the other protocol so both stay available for activation.
+    private func saveCompanionCopyIfDualCredential(contents: String, primary: PairingProtocol) {
+        let companion: PairingProtocol = primary == .rppairing ? .lockdown : .rppairing
+        guard (try? parse(content: contents, preferred: companion)) != nil else { return }
+        do {
+            try savePairingFile(contents: contents, preferred: companion)
+        } catch {
+            debugLog("[PairingFile] Failed to store companion \(companion.rawValue) copy: \(error)")
+        }
     }
 
     func deletePairingFile(for mode: PairingProtocol) {

@@ -39,7 +39,9 @@ public final class AppBootManager {
             try await startEMProxy()
         }
 
-        let preferred = PairingFileManager.shared.preferredProtocol
+        // resolve explicitly: passing nil for a dual-credential pairing file makes minimuxer fail as "ambiguous"
+        let preferred = PairingFileManager.shared.resolveStartProtocol(for: pairingFile) ?? PairingFileManager.shared.preferredProtocol
+        debugLog("[AppBootManager] startMinimuxer(): starting with protocol \(preferred?.rawValue ?? "nil")")
         try await minimuxerStart(pairingFile, preferred: preferred)
         
         // Validate the pairing by trying to fetch the UDID
