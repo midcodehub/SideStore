@@ -72,7 +72,10 @@ public actor AnisetteServersManager {
 
         guard fileManager.fileExists(atPath: targetURL.path),
               let data = try? Data(contentsOf: targetURL) else {
-            return []
+            let fallbackItems = Self.makeBuiltInFallbackItems()
+            saveLocalServers(fallbackItems)
+            debugLog("[AnisetteServersManager] Seeded built-in fallback Anisette servers (\(fallbackItems.count) entries).")
+            return fallbackItems
         }
 
         let decoder = Foundation.JSONDecoder()
@@ -89,8 +92,20 @@ public actor AnisetteServersManager {
             }
         }
 
+        if items.isEmpty {
+            let fallbackItems = Self.makeBuiltInFallbackItems()
+            saveLocalServers(fallbackItems)
+            return fallbackItems
+        }
+
         inMemoryServersCache = items
         return items
+    }
+
+    private static func makeBuiltInFallbackItems() -> [AnisetteServerItem] {
+        AppConstants.Anisette.Servers.builtInFallbackServers.map {
+            AnisetteServerItem(name: $0.name, address: $0.address, isHidden: false)
+        }
     }
 
     public func saveLocalServers(_ items: [AnisetteServerItem]) {

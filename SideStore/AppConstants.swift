@@ -68,9 +68,9 @@ public enum AppConstants {
         public static let defaultODAMetadataURL       = URL(string: "https://zzz.haus/oda.json")!
         public static var defaultODAMetadataURLString: String { defaultODAMetadataURL.absoluteString }
 
-        // Proxied from upstream SideSign
-        public static let defaultClientInfo           = Constants.Anisette.defaultClientInfo
-        public static let defaultUserAgent            = Constants.Anisette.defaultUserAgent
+        // Default headers aligned with SideStore (New) macOS CoreADI endpoint (/v3/client_info); needs proper testing across regions
+        public static let defaultClientInfo           = "<MacBookPro13,3> <Mac OS X;10.12.6;16G29> <com.apple.AuthKit/1 (com.apple.akd/1.0)>"
+        public static let defaultUserAgent            = "akd/1.0 CFNetwork/811.5.4 Darwin/16.7.0"
 
         public enum URLs {
             public static let grandSlamLookup = Constants.Anisette.URLs.grandSlamLookup
@@ -96,8 +96,13 @@ public enum AppConstants {
 
         public enum Servers {
             public static let defaultSource        = "https://servers.sidestore.io/servers.json"
-            public static let defaultServerURL     = "https://ani.sidestore.io"
+            public static let defaultServerURL     = "https://new.ani.sidestore.io"
             public static let connectivityCheckURL = URL(string: "https://www.apple.com/library/test/success.html")!
+            public static let builtInFallbackServers: [(name: String, address: String)] = [
+                (name: "SideStore (New)", address: "https://new.ani.sidestore.io"),
+                (name: "SideStore", address: "https://ani.sidestore.io"),
+                (name: "SideStore (Windows ADI)", address: "https://win.ani.sidestore.io")
+            ]
         }
 
         public static let remoteCacheDuration     = Constants.Anisette.remoteCacheDuration

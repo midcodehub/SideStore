@@ -22,7 +22,10 @@ enum AnisetteProvider {
 
     private static func fetchRemote(handler: AnisetteServerHandler? = nil) async throws -> ALTAnisetteData {
         let serverUrlStrings = await AnisetteServersManager.shared.getActiveServerURLs()
-        let servers = serverUrlStrings.compactMap { URL(string: $0) }
+        var servers = serverUrlStrings.compactMap { URL(string: $0) }
+        if servers.isEmpty, let fallbackURL = URL(string: AppConstants.Anisette.Servers.defaultServerURL) {
+            servers = [fallbackURL]
+        }
         guard !servers.isEmpty else {
             throw AnisetteError.noServersConfigured
         }

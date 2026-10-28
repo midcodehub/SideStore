@@ -14,7 +14,7 @@ public final class MaintenanceManager {
     public static let shared = MaintenanceManager()
 
     // Increment this counter whenever you want to trigger another maintenance pass in future updates
-    public static let currentMaintenanceCounter = 7
+    public static let currentMaintenanceCounter = 8
 
     public static let maintenanceCounterFileName = ".maintenance_counter"
 
@@ -75,6 +75,14 @@ public final class MaintenanceManager {
                 SideSignConfigManager.shared.resetToDefaults()
             case 7:
                 await migratePairingFiles()
+            case 8:
+                UserDefaults.standard.useOnDeviceAnisette = false
+                UserDefaults.standard.disableAnisetteRotation = true
+                UserDefaults.standard.menuAnisetteURL = AppConstants.Anisette.Servers.defaultServerURL
+                AnisetteConfigManager.shared.anisetteAdiBlob = nil
+                AnisetteConfigManager.shared.resetToDefaults()
+                AnisetteDataManager.shared.clearCache()
+                _ = await AnisetteServersManager.shared.loadLocalServers()
             default:
                 break
             }
