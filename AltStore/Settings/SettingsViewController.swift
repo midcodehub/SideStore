@@ -683,7 +683,7 @@ private extension SettingsViewController
     }
     
     /// Builds a row that is not present in Settings.storyboard, styled like the storyboard's inset cells.
-    func makeProgrammaticAdvancedCell(for row: AdvancedSettingsRow, at indexPath: IndexPath) -> UITableViewCell
+    private func makeProgrammaticAdvancedCell(for row: AdvancedSettingsRow, at indexPath: IndexPath) -> UITableViewCell
     {
         let cell = InsetGroupTableViewCell(style: .default, reuseIdentifier: nil)
         cell.isSelectable = true
@@ -696,7 +696,7 @@ private extension SettingsViewController
         titleLabel.font = UIFont.boldSystemFont(ofSize: 17)
         titleLabel.textColor = .white
         titleLabel.numberOfLines = 1
-        titleLabel.adjustsFontSizeToFit = true
+        titleLabel.adjustsFontSizeToFitWidth = true
         titleLabel.minimumScaleFactor = 0.8
         
         let chevronConfiguration = UIImage.SymbolConfiguration(scale: .large)

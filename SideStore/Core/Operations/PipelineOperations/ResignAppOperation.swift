@@ -42,7 +42,6 @@ final class ResignAppOperation: BasePipelineOperation<InstallAppOperationContext
         
         self.setProgress(5)
         
-        let effectiveBundleId = self.context.targetBundleIdentifier
         let appBundleURL = try await self.prepareAppBundle(for: appBundle, profiles: profiles, appexBundleIds: context.appexBundleIds ?? [:])
         
         self.setProgress(40)
@@ -129,7 +128,7 @@ final class ResignAppOperation: BasePipelineOperation<InstallAppOperationContext
         guard let profile = context.useMainProfile ? profiles.values.first : profiles[identifier] else {
             throw OperationError.missingProvisioningProfile(reason: "No provisioning profile found for identifier '\(identifier)'.")
         }
-        guard var parser = try? InfoPlistParser(plistURL: appBundle.infoPlistURL) else {
+        guard let parser = try? InfoPlistParser(plistURL: appBundle.infoPlistURL) else {
             throw OperationError.missingInfoPlist(reason: "Could not read Info.plist for bundle '\(identifier)'.")
         }
         var infoDictionary = parser.rawDictionary as [String: Any]
